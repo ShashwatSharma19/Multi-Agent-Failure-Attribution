@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Secrets
+.env
+
+# Run artifacts
+.cache/
+outputs/
+
+# Dataset (cloned separately; see README)
+data/whoandwhen/
