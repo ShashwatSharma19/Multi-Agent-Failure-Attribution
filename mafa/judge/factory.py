@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from mafa.judge.accounting import AccountingJudge
 from mafa.judge.backends import GeminiJudge, GroqJudge, OllamaJudge
 from mafa.judge.base import Judge
 from mafa.judge.cache import CachingJudge
@@ -49,4 +50,6 @@ def build_judge(
     rpm = _DEFAULT_RPM.get(kind, 0) if rpm is None else rpm
     backend = _backend(kind, model)
     limited = RateLimitedJudge(backend, rpm=rpm)
-    return CachingJudge(limited, db_path=cache_db)
+    cached = CachingJudge(limited, db_path=cache_db)
+    # Accounting outermost: counts every logical call the method issues.
+    return AccountingJudge(cached)
