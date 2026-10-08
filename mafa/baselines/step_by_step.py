@@ -14,10 +14,21 @@ from mafa.io import Trace
 from mafa.judge.base import Judge, JudgeError
 
 
-def run(judge: Judge, trace: Trace, max_tokens: int = 1024, include_ground_truth: bool = True) -> Prediction:
+def run(
+    judge: Judge,
+    trace: Trace,
+    max_tokens: int = 1024,
+    include_ground_truth: bool = True,
+    scope: tuple[int, int] | None = None,
+) -> Prediction:
+    lo, hi = scope if scope is not None else (0, len(trace.steps) - 1)
     history_so_far = ""
     for step in trace.steps:
         history_so_far += f"Step {step.index} - {step.agent}: {step.content}\n"
+        if step.index < lo:
+            continue  # build context for the prompt, but do not spend a judge call
+        if step.index > hi:
+            break  # past the scoped window; stop
         prompt = step_prompt(
             trace.question, trace.ground_truth, history_so_far,
             step.index, step.agent, include_ground_truth,

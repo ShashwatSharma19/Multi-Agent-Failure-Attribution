@@ -49,10 +49,18 @@ def _find(judge, trace, start, end, max_tokens, include_gt, rng) -> int:
     return _find(judge, trace, min(mid + 1, end), end, max_tokens, include_gt, rng)
 
 
-def run(judge: Judge, trace: Trace, max_tokens: int = 1024, include_ground_truth: bool = True, seed: int = 0) -> Prediction:
+def run(
+    judge: Judge,
+    trace: Trace,
+    max_tokens: int = 1024,
+    include_ground_truth: bool = True,
+    seed: int = 0,
+    scope: tuple[int, int] | None = None,
+) -> Prediction:
     if not trace.steps:
         return Prediction("", "", raw="empty trace")
     rng = random.Random(seed)
-    step_idx = _find(judge, trace, 0, len(trace.steps) - 1, max_tokens, include_ground_truth, rng)
+    lo, hi = scope if scope is not None else (0, len(trace.steps) - 1)
+    step_idx = _find(judge, trace, lo, hi, max_tokens, include_ground_truth, rng)
     agent = trace.steps[step_idx].agent
     return Prediction(agent, str(step_idx), raw=f"binary search -> step {step_idx}")

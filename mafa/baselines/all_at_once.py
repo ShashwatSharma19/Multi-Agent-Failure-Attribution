@@ -8,7 +8,13 @@ from mafa.io import Trace
 from mafa.judge.base import Judge, JudgeError
 
 
-def run(judge: Judge, trace: Trace, max_tokens: int = 1024, include_ground_truth: bool = True) -> Prediction:
+def run(
+    judge: Judge,
+    trace: Trace,
+    max_tokens: int = 1024,
+    include_ground_truth: bool = True,
+    scope: tuple[int, int] | None = None,  # accepted for a uniform interface; ignored (one-call method, keeps reference prompt + global step numbering intact)
+) -> Prediction:
     prompt = all_at_once_prompt(
         trace.question, trace.ground_truth, trace.transcript, include_ground_truth
     )
