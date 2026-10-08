@@ -8,7 +8,7 @@ Measured on the [Who&When](https://github.com/ag2ai/Agents_Failure_Attribution) 
 those baselines and then adds a scope-delineation pass and a spectrum-based (SBFL) scorer
 to beat them.
 
-> **Status:** Phase 1 — baseline reproduction harness. Headline number lands in Phase 3.
+> **Status:** Phase 2 — baseline harness + scope-delineation pass. Headline number lands in Phase 3.
 
 ---
 
@@ -83,7 +83,19 @@ python -m mafa.cli --method all_at_once --judge ollama --subset algo --limit 10
 
 # 4. Headline run on the free Groq tier (needs GROQ_API_KEY in .env)
 python -m mafa.cli --method all_at_once --judge groq --subset algo
+
+# 5. Phase 2: scope-delineation (narrows long logs; fewer calls per log)
+python -m mafa.cli --method step_by_step --judge groq --subset hand --scope --windows 3
 ```
+
+### Scope-delineation (Phase 2)
+
+A cheap one-call pass splits a log into `--windows` contiguous segments and asks
+the judge which segment holds the decisive error; the expensive per-step
+attribution then runs only inside that window. This reduces judge **calls** and
+**tokens** per log (reported as `Cost: N judge calls/log, ~T est tokens/log`) and
+is what keeps long logs under the free-tier limits. It applies to `step_by_step`
+and `binary_search`; `all_at_once` is a single call and is left unchanged.
 
 Subsets: `algo` (126 Algorithm-Generated logs) and `hand` (58 Hand-Crafted logs).
 Methods: `all_at_once`, `step_by_step`, `binary_search`.
