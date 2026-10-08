@@ -37,3 +37,28 @@ def test_binary_search_upper_half_goes_left(sample_trace):
     judge = MockJudge(["upper half"])  # repeated -> converge to step 0
     pred = binary_search(judge, sample_trace)
     assert pred.predicted_step == "0"
+
+
+# --- Phase 2: scope restricts where the judge is called ---
+
+def test_step_by_step_scope_only_calls_within_window(sample_trace):
+    # scope=(2,2): steps 0,1 build context but are NOT evaluated; only step 2 is.
+    judge = MockJudge(["1. Yes\n2. Reason: here"])
+    pred = step_by_step(judge, sample_trace, scope=(2, 2))
+    assert len(judge.calls) == 1
+    assert pred.predicted_step == "2"
+    assert pred.predicted_agent == "Checker"
+
+
+def test_step_by_step_scope_none_matches_phase1(sample_trace):
+    judge = MockJudge(["1. No\n2. Reason: fine", "1. Yes\n2. Reason: bad"])
+    pred = step_by_step(judge, sample_trace, scope=None)
+    assert pred.predicted_step == "1"  # unchanged Phase-1 behavior
+
+
+def test_binary_search_scope_stays_within_window(sample_trace):
+    # scope=(0,1): converge inside the first two steps only.
+    judge = MockJudge(["lower half"])
+    pred = binary_search(judge, sample_trace, scope=(0, 1))
+    assert pred.predicted_step == "1"
+    assert pred.predicted_agent == "Math_Expert"
