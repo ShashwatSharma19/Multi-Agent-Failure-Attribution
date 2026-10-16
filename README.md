@@ -8,7 +8,7 @@ Measured on the [Who&When](https://github.com/ag2ai/Agents_Failure_Attribution) 
 those baselines and then adds a scope-delineation pass and a spectrum-based (SBFL) scorer
 to beat them.
 
-> **Status:** Phase 2 — baseline harness + scope-delineation pass. Headline number lands in Phase 3.
+> **Status:** Phase 3 — baseline harness + scope pass + spectrum/fusion scorer. Awaiting a cloud-judge run for the headline number.
 
 ---
 
@@ -96,6 +96,29 @@ attribution then runs only inside that window. This reduces judge **calls** and
 **tokens** per log (reported as `Cost: N judge calls/log, ~T est tokens/log`) and
 is what keeps long logs under the free-tier limits. It applies to `step_by_step`
 and `binary_search`; `all_at_once` is a single call and is left unchanged.
+
+### Spectrum + fusion (Phase 3)
+
+Who&When logs are **all failures** (no passing runs), so a classic whole-run
+spectrum is impossible. Instead we build a **step-level** spectrum: a per-step probe
+labels each step error / not-error, each agent "covers" the steps it authored, and
+**Ochiai** suspiciousness ranks the agents. A cross-log `RolePrior` pools the same
+signal per recurring role. The `fused` method combines the direct LLM vote with the
+spectrum via a weighted score; the weight is tuned on a **held-out dev split** so the
+reported test numbers are never tuned on.
+
+```bash
+# spectrum-only attribution
+python -m mafa.cli --method spectrum --judge groq --subset hand --scope
+
+# fused (LLM vote + spectrum), weight tuned on a dev split, reported on test
+python -m mafa.cli --method fused --judge groq --subset hand --scope --tune
+
+# optionally blend the cross-log role prior
+python -m mafa.cli --method fused --judge groq --subset algo --role-prior
+```
+
+This yields the Phase 3 comparison: **baseline vs. spectrum-only vs. fused**.
 
 Subsets: `algo` (126 Algorithm-Generated logs) and `hand` (58 Hand-Crafted logs).
 Methods: `all_at_once`, `step_by_step`, `binary_search`.
