@@ -17,6 +17,8 @@ import argparse
 import json
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from mafa.eval.scorer import score
 from mafa.fuse.split import split_traces, tune_weight
 from mafa.io import load_dataset
@@ -55,6 +57,7 @@ def _parse_args(argv):
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_dotenv()  # read GROQ_API_KEY / GEMINI_API_KEY from a .env in the project root
     args = _parse_args(argv)
     rel_dir, is_handcrafted = _SUBSET_DIR[args.subset]
     traces = load_dataset(rel_dir, is_handcrafted, limit=args.limit)
@@ -138,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     suffix = "_scope" if args.scope else ""
     suffix += "_tuned" if (is_fused and args.tune) else ""
-    out_path = out_dir / f"{args.method}_{args.judge}_{args.subset}{suffix}.json"
+    out_path = out_dir / f"{args.method}_{args.judge}_{args.subset}_n{n}{suffix}.json"
     out_path.write_text(
         json.dumps(
             {
