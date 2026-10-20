@@ -41,6 +41,30 @@ def test_ratelimit_retries_then_succeeds():
     assert sleeps == [1.0, 2.0]  # exponential backoff between the 3 attempts
 
 
+def test_ratelimit_does_not_retry_permanent_error():
+    import pytest
+
+    from mafa.judge.base import Judge, JudgeError
+
+    class PermanentFail(Judge):
+        model_id = "x"
+
+        def __init__(self):
+            self.calls = 0
+
+        def complete(self, system, user, max_tokens=1024, temperature=0.0):
+            self.calls += 1
+            raise JudgeError("bad model id", retryable=False)
+
+    inner = PermanentFail()
+    sleeps = []
+    judge = RateLimitedJudge(inner, rpm=0, max_retries=5, sleep=sleeps.append)
+    with pytest.raises(JudgeError):
+        judge.complete("s", "u")
+    assert inner.calls == 1  # failed fast — no retries
+    assert sleeps == []  # never backed off
+
+
 def test_ratelimit_gives_up_after_max_retries():
     import pytest
 
