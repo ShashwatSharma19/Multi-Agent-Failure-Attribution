@@ -37,11 +37,13 @@ def label_steps(
     history = ""
     labels: list[StepLabel] = []
     for step in trace.steps:
-        history += f"Step {step.index} - {step.agent}: {step.content}\n"
         if step.index < lo:
-            continue  # context only
+            continue
         if step.index > hi:
             break
+        # shortcut: prompt history is the scope window only, not the whole transcript,
+        # so calls stay O(window) on long logs. Upgrade if judging a step needs earlier context.
+        history += f"Step {step.index} - {step.agent}: {step.content}\n"
         prompt = step_prompt(
             trace.question, trace.ground_truth, history, step.index, step.agent, include_ground_truth
         )

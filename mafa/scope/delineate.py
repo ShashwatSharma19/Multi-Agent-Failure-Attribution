@@ -33,8 +33,10 @@ def windows(n: int, k: int) -> list[tuple[int, int]]:
 def _prompt(trace: Trace, wins: list[tuple[int, int]], include_ground_truth: bool) -> str:
     segments = []
     for i, (s, e) in enumerate(wins, 1):
+        # shortcut: truncate each step to ~200 chars — the judge only needs the gist to
+        # pick a region, and this keeps the whole-transcript scope prompt small on long logs.
         body = "\n".join(
-            f"Step {st.index} - {st.agent}: {st.content}" for st in trace.steps[s : e + 1]
+            f"Step {st.index} - {st.agent}: {st.content[:200]}" for st in trace.steps[s : e + 1]
         )
         segments.append(f"Segment {i} (steps {s}-{e}):\n{body}")
     answer = f"The correct answer to the problem is: {trace.ground_truth}\n" if include_ground_truth else ""
@@ -53,7 +55,7 @@ def delineate(
     judge: Judge,
     trace: Trace,
     n_windows: int = 3,
-    max_tokens: int = 16,
+    max_tokens: int = 256,  # headroom for reasoning models whose answer follows a reasoning pass
     include_ground_truth: bool = True,
 ) -> tuple[int, int]:
     """Return the ``(start, end)`` window likely to contain the failure.
