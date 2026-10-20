@@ -19,7 +19,7 @@ from mafa.judge.ratelimit import RateLimitedJudge
 _DEFAULT_RPM = {"groq": 25, "gemini": 14, "ollama": 0}  # 0 = no throttle locally
 
 _DEFAULT_MODEL = {
-    "groq": "llama-3.3-70b-versatile",
+    "groq": "openai/gpt-oss-120b",
     "gemini": "gemini-2.0-flash",
     "ollama": "llama3.2",
 }

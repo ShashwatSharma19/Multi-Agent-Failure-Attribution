@@ -11,7 +11,16 @@ from abc import ABC, abstractmethod
 
 
 class JudgeError(RuntimeError):
-    """Raised when a backend cannot produce a completion."""
+    """Raised when a backend cannot produce a completion.
+
+    ``retryable`` tells the rate limiter whether a retry could help: transient
+    failures (HTTP 429, network errors) are retryable; permanent ones (a bad model
+    id, auth failure, malformed request → 4xx) are not, so they fail fast.
+    """
+
+    def __init__(self, message: str, retryable: bool = True):
+        super().__init__(message)
+        self.retryable = retryable
 
 
 class Judge(ABC):

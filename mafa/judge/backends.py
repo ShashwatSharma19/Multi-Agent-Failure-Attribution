@@ -62,28 +62,32 @@ class _OpenAICompatJudge(Judge):
             "max_tokens": max_tokens,
             "temperature": temperature,
         }
+        # gpt-oss are reasoning models: keep reasoning short so the formatted answer
+        # reliably fits in the token budget (and to cut cost/latency).
+        if "gpt-oss" in self.model_id:
+            payload["reasoning_effort"] = "low"
         try:
             resp = requests.post(self._endpoint, json=payload, headers=headers, timeout=_DEFAULT_TIMEOUT)
         except requests.RequestException as exc:
-            raise JudgeError(f"request failed: {exc}") from exc
+            raise JudgeError(f"request failed: {exc}", retryable=True) from exc
         if resp.status_code == 429:
-            raise JudgeError("rate limited (HTTP 429)")
+            raise JudgeError("rate limited (HTTP 429)", retryable=True)
         if resp.status_code >= 400:
-            raise JudgeError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+            raise JudgeError(f"HTTP {resp.status_code}: {resp.text[:200]}", retryable=False)
         try:
             return resp.json()["choices"][0]["message"]["content"].strip()
         except (KeyError, IndexError, ValueError) as exc:
-            raise JudgeError(f"bad response shape: {exc}") from exc
+            raise JudgeError(f"bad response shape: {exc}", retryable=False) from exc
 
 
 class GroqJudge(_OpenAICompatJudge):
     """Groq free tier (OpenAI-compatible). Default headline judge."""
 
-    def __init__(self, model_id: str = "llama-3.3-70b-versatile", api_key: str | None = None):
+    def __init__(self, model_id: str = "openai/gpt-oss-120b", api_key: str | None = None):
         self.model_id = model_id
         key = api_key or os.environ.get("GROQ_API_KEY")
         if not key:
-            raise JudgeError("GROQ_API_KEY not set (export it or put it in .env)")
+            raise JudgeError("GROQ_API_KEY not set (export it or put it in .env)", retryable=False)
         self._api_key = key
         self._endpoint = "https://api.groq.com/openai/v1/chat/completions"
 
@@ -95,7 +99,7 @@ class GeminiJudge(Judge):
         self.model_id = model_id
         key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         if not key:
-            raise JudgeError("GEMINI_API_KEY not set (export it or put it in .env)")
+            raise JudgeError("GEMINI_API_KEY not set (export it or put it in .env)", retryable=False)
         self._api_key = key
         self._base = "https://generativelanguage.googleapis.com/v1beta/models"
 
@@ -109,12 +113,12 @@ class GeminiJudge(Judge):
         try:
             resp = requests.post(url, json=payload, timeout=_DEFAULT_TIMEOUT)
         except requests.RequestException as exc:
-            raise JudgeError(f"request failed: {exc}") from exc
+            raise JudgeError(f"request failed: {exc}", retryable=True) from exc
         if resp.status_code == 429:
-            raise JudgeError("rate limited (HTTP 429)")
+            raise JudgeError("rate limited (HTTP 429)", retryable=True)
         if resp.status_code >= 400:
-            raise JudgeError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+            raise JudgeError(f"HTTP {resp.status_code}: {resp.text[:200]}", retryable=False)
         try:
             return resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
         except (KeyError, IndexError, ValueError) as exc:
-            raise JudgeError(f"bad response shape: {exc}") from exc
+            raise JudgeError(f"bad response shape: {exc}", retryable=False) from exc

@@ -45,14 +45,11 @@ class RateLimitedJudge(Judge):
         self._last_call = self._clock()
 
     def complete(self, system, user, max_tokens=1024, temperature=0.0) -> str:
-        last_exc: JudgeError | None = None
         for attempt in range(self._max_retries + 1):
             self._throttle()
             try:
                 return self.inner.complete(system, user, max_tokens, temperature)
             except JudgeError as exc:
-                last_exc = exc
-                if attempt == self._max_retries:
-                    break
+                if not exc.retryable or attempt == self._max_retries:
+                    raise  # permanent error, or out of attempts — don't keep backing off
                 self._sleep(self._base_delay * (2**attempt))
-        raise JudgeError(f"exhausted retries: {last_exc}")
