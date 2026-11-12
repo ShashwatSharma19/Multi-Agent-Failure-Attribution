@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -33,6 +34,15 @@ _SUBSET_DIR = {
     "algo": ("data/whoandwhen/Who&When/Algorithm-Generated", False),
     "hand": ("data/whoandwhen/Who&When/Hand-Crafted", True),
 }
+
+
+def _clean_reason(raw: str) -> str:
+    """Pull the human explanation out of a prediction's raw text, for the viewer."""
+    if not raw:
+        return ""
+    parts = re.split(r"Reason[^:\n]*:", raw, maxsplit=1)  # all_at_once ends with "Reason for Mistake: ..."
+    reason = parts[-1].strip() if len(parts) > 1 else raw.strip()
+    return reason[:600]
 
 
 def _parse_args(argv):
@@ -122,11 +132,13 @@ def main(argv: list[str] | None = None) -> int:
     # --- Pass 2: finalize predictions on the reporting set (pure, no judge calls) ---
     predictions = {}
     truth = {}
+    scores_by_file = {}
     total_calls = total_tokens = 0
     for t in report_traces:
         ev = evidence[t.source_file]
         scores = effective_scores(ev, role_prior, args.role_weight)
         predictions[t.source_file] = finalize(args.method, ev, scores, weight)
+        scores_by_file[t.source_file] = scores
         truth[t.source_file] = ev.truth
         c, tok = cost[t.source_file]
         total_calls += c
@@ -152,7 +164,18 @@ def main(argv: list[str] | None = None) -> int:
                 "n_reported": n, "n_total": len(traces),
                 "agent_accuracy": scores_out.agent_accuracy, "step_accuracy": scores_out.step_accuracy,
                 "avg_calls_per_log": avg_calls, "avg_est_tokens_per_log": avg_tokens,
-                "predictions": {k: {"agent": v.predicted_agent, "step": v.predicted_step} for k, v in predictions.items()},
+                "predictions": {
+                    k: {
+                        "agent": v.predicted_agent,
+                        "step": v.predicted_step,
+                        "reason": _clean_reason(v.raw),  # the engine's explanation, for the viewer
+                        # spectrum/fused only: per-agent suspiciousness + per-step error flags (for the viewer)
+                        **({"scores": scores_by_file[k]} if scores_by_file.get(k) else {}),
+                        **({"labels": [{"index": lb.index, "agent": lb.agent, "is_error": lb.is_error}
+                                       for lb in evidence[k].labels]} if evidence[k].labels else {}),
+                    }
+                    for k, v in predictions.items()
+                },
             },
             indent=2,
         ),

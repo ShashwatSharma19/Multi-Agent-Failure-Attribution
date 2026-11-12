@@ -8,7 +8,47 @@ Measured on the [Who&When](https://github.com/ag2ai/Agents_Failure_Attribution) 
 those baselines and then adds a scope-delineation pass and a spectrum-based (SBFL) scorer
 to beat them.
 
-> **Status:** Phase 3 — baseline harness + scope pass + spectrum/fusion scorer. Awaiting a cloud-judge run for the headline number.
+> **Status:** Phase 3 — baseline harness + scope pass + spectrum/fusion scorer. Baseline numbers measured on Groq; long-log fusion verdict pending.
+
+---
+
+## Results
+
+Judge: Groq `openai/gpt-oss-120b` (`reasoning_effort=low`, `temperature=0`). The paper's
+**53.5% / 14.2%** was produced with GPT-4o — a *different* judge, so it's shown as context, not an
+apples-to-apples target. The honest claim is **our methods vs. our own reproduced baseline on the
+same harness.**
+
+**Algorithm-Generated — short logs (~9 steps):**
+
+| Method | Agent acc | Step acc | n |
+|---|---:|---:|---:|
+| **Baseline** (`all_at_once`) | **60.0%** | **20.0%** | 15 |
+| Spectrum | 20.0% | 20.0% | 15 |
+| Fused (weight tuned on dev) | 27.3% | 9.1% | 11 (test split) |
+
+*The one-shot baseline already beats the paper on short logs.* Spectrum and fusion do **not** help
+here — the log is short enough that a single pass sees everything, so the step-level spectrum mostly
+adds noise, and on a ~4-log dev split the tuned weight collapsed to 0 (ignore the strong LLM vote).
+An honest negative result in this regime.
+
+**Hand-Crafted — long logs (~51 steps avg, up to 130):**
+
+| Method | Agent acc | Step acc | n |
+|---|---:|---:|---:|
+| **Baseline** (`all_at_once`) | **10.0%** | **0.0%** | 10 |
+| Spectrum / Fused | _pending_ | _pending_ | — |
+
+*The one-shot baseline collapses on long logs* (10% vs 60%) — precisely the regime where per-step
+localization should help. The spectrum/fused run on long logs is **not yet measured** (it's the fair
+test of the fusion idea); numbers will land here when that run completes.
+
+**Takeaway:** baseline reproduction succeeds and beats the published numbers on short logs; the
+baseline's collapse on long logs is itself the finding that motivates the spectrum approach; whether
+fusion wins there is measured-pending, and reported as open rather than claimed.
+
+Every number is reproducible from a clean checkout — results are deterministic via the on-disk judge
+cache (`python -m mafa.cli --method <m> --judge groq --subset <algo|hand> …`).
 
 ---
 
@@ -122,6 +162,19 @@ This yields the Phase 3 comparison: **baseline vs. spectrum-only vs. fused**.
 
 Subsets: `algo` (126 Algorithm-Generated logs) and `hand` (58 Hand-Crafted logs).
 Methods: `all_at_once`, `step_by_step`, `binary_search`.
+
+## Dashboard (live demo)
+
+A read-only web viewer renders recorded runs — no judge calls, so it's instant and safe to demo:
+
+```bash
+uvicorn mafa.viewer.app:app --port 8000
+```
+
+Open `http://localhost:8000`: pick a run to see its metric cards (agent/step accuracy vs the paper,
+cost per log) and a per-log predicted-vs-ground-truth table; click a log to see the full transcript
+with the **predicted** and **ground-truth** steps highlighted, plus per-agent suspiciousness bars for
+spectrum/fused runs.
 
 ## Tests
 
